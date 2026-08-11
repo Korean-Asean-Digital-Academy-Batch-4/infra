@@ -17,7 +17,11 @@ const server = createServer((req, res) => {
 
   // Readiness check Lambda Web Adapter — ARCHITECTURE.md Pasal 6. Trafik tidak
   // masuk sebelum jalur ini menjawab 200.
-  if (req.method === "GET" && jalur === "/healthz") {
+  //
+  // Dua alamat, sama seperti aplikasi yang sesungguhnya: `/healthz` dipanggil
+  // adapter dari dalam container, `/api/healthz` dipanggil dari luar lewat
+  // CloudFront — dan hanya `/api/*` yang diteruskan ke Lambda.
+  if (req.method === "GET" && (jalur === "/healthz" || jalur === "/api/healthz")) {
     jawab(res, 200, { data: { proses: "siap", image: "bootstrap" } });
     return;
   }
@@ -31,7 +35,10 @@ const server = createServer((req, res) => {
   // benar-benar diterima, sehingga pengirim dapat membandingkannya dengan yang
   // dikirim. Dibuat sekarang, ketika API masih berupa stub — bukan ditemukan
   // ketika frontend mulai menyimpan nilai.
-  if ((req.method === "POST" || req.method === "PATCH") && jalur === "/uji-body") {
+  if (
+    (req.method === "POST" || req.method === "PATCH") &&
+    (jalur === "/uji-body" || jalur === "/api/uji-body")
+  ) {
     const potongan = [];
     req.on("data", (bagian) => potongan.push(bagian));
     req.on("end", () => {
@@ -52,7 +59,11 @@ const server = createServer((req, res) => {
     return;
   }
 
-  jawab(res, 404, kesalahan("TIDAK_DITEMUKAN", "Image bootstrap hanya melayani /healthz."));
+  jawab(
+    res,
+    404,
+    kesalahan("TIDAK_DITEMUKAN", "Image bootstrap hanya melayani /healthz dan /uji-body."),
+  );
 });
 
 function jawab(res, status, isi) {

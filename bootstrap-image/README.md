@@ -20,9 +20,11 @@ Image ini karenanya **tanpa dependensi dan tanpa satu pun variabel lingkungan ya
 
 | Jalur | Jawaban |
 |---|---|
-| `GET /healthz` | `200` — readiness check Lambda Web Adapter |
-| `POST /uji-body`, `PATCH /uji-body` | `200` beserta panjang dan `sha256` body yang **benar-benar diterima** |
+| `GET /healthz` dan `GET /api/healthz` | `200` — readiness check Lambda Web Adapter |
+| `POST` dan `PATCH` pada `/uji-body` maupun `/api/uji-body` | `200` beserta panjang dan `sha256` body yang **benar-benar diterima** |
 | selainnya | `404` |
+
+**Dua alamat bagi masing-masing, dan keduanya diperlukan.** Bentuk tanpa awalan dipanggil adapter dari dalam container; bentuk ber-awalan `/api` dipanggil dari luar lewat CloudFront, yang hanya meneruskan `/api/*` ke Lambda ([ARCHITECTURE.md Pasal 3](../../context/ARCHITECTURE.md)). Aplikasi yang sesungguhnya memakai bentuk yang sama.
 
 Jalur kedua adalah alat ukur **B4**, yaitu pembuktian penandatanganan OAC atas request ber-body yang diwajibkan [ARCHITECTURE.md §12.2](../../context/ARCHITECTURE.md) pada hari pertama infrastruktur naik. Prosedurnya pada [`../uji-oac/README.md`](../uji-oac/README.md).
 
