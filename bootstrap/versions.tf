@@ -8,24 +8,22 @@ terraform {
     }
   }
 
-  # Backend sengaja DIBIARKAN LOKAL pada apply pertama.
+  # Bucket ini dibuat oleh konfigurasi ini sendiri pada apply pertama, yang
+  # karenanya berjalan dengan backend lokal. Blok di bawah dinyalakan sesudah
+  # apply itu berhasil, lalu state-nya dipindahkan sekali seumur proyek:
   #
-  # Konfigurasi ini yang membuat bucket state-nya sendiri, sehingga ia tidak
-  # dapat menyimpan state di tempat yang belum ada. Sesudah apply pertama
-  # berhasil, blok di bawah dinyalakan lalu state-nya dipindahkan:
+  #   terraform -chdir=bootstrap init -migrate-state
   #
-  #   terraform init -migrate-state
-  #
-  # Langkah itu dijelaskan pada README.md dan hanya dikerjakan sekali seumur
-  # proyek.
-  #
-  # backend "s3" {
-  #   bucket       = "edutrack-tfstate-<ID-AKUN>"
-  #   key          = "bootstrap/terraform.tfstate"
-  #   region       = "ap-southeast-3"
-  #   encrypt      = true
-  #   use_lockfile = true
-  # }
+  # Nama bucket wajib literal — blok backend tidak menerima variabel maupun
+  # data source, sehingga ID akun ditulis apa adanya. Ia bukan rahasia: setiap
+  # ARN yang dipakai sehari-hari sudah memuatnya.
+  backend "s3" {
+    bucket       = "edutrack-tfstate-274286556151"
+    key          = "bootstrap/terraform.tfstate"
+    region       = "ap-southeast-3"
+    encrypt      = true
+    use_lockfile = true
+  }
 }
 
 provider "aws" {
