@@ -79,7 +79,11 @@ resource "aws_route_table" "publik" {
 }
 
 resource "aws_route_table_association" "publik" {
-  count = length(aws_subnet.publik)
+  # `length(var.zona)`, BUKAN `length(aws_subnet.publik)`. Yang kedua bergantung
+  # pada sumber daya yang belum ada, sehingga jumlahnya tidak dapat diketahui
+  # saat plan dan Terraform menolak seluruh perintah — termasuk `import` yang
+  # tidak berhubungan sama sekali. `terraform validate` tidak menangkap ini.
+  count = length(var.zona)
 
   subnet_id      = aws_subnet.publik[count.index].id
   route_table_id = aws_route_table.publik.id
@@ -100,7 +104,7 @@ resource "aws_route_table" "privat_app" {
 }
 
 resource "aws_route_table_association" "privat_app" {
-  count = length(aws_subnet.privat_app)
+  count = length(var.zona)
 
   subnet_id      = aws_subnet.privat_app[count.index].id
   route_table_id = aws_route_table.privat_app.id
@@ -115,7 +119,7 @@ resource "aws_route_table" "privat_data" {
 }
 
 resource "aws_route_table_association" "privat_data" {
-  count = length(aws_subnet.privat_data)
+  count = length(var.zona)
 
   subnet_id      = aws_subnet.privat_data[count.index].id
   route_table_id = aws_route_table.privat_data.id
