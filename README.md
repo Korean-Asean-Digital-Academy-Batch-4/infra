@@ -26,8 +26,15 @@ tertulis di sana berlaku apabila bertentangan dengan apa pun di repositori ini.
 ## Menjalankan
 
 ```bash
-AWS_PROFILE=edutrack terraform -chdir=bootstrap apply
+eval "$(aws configure export-credentials --profile edutrack --format env)"
 ```
 
-Peminjaman role menuntut kode MFA dari ponsel. Agen tidak dapat menjalankan
+```bash
+terraform -chdir=bootstrap apply
+```
+
+Peminjaman role menuntut kode MFA dari ponsel, dan **Terraform tidak dapat
+menanyakannya sendiri** — karena itu sesinya diserahkan lewat variabel
+lingkungan, bukan lewat `AWS_PROFILE`. Sebabnya pada
+[DEPLOYMENT.md §9.6](../context/DEPLOYMENT.md). Agen tidak dapat menjalankan
 langkah ini — [AGENTS.md §10](../context/AGENTS.md).
