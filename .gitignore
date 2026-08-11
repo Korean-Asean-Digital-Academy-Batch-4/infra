@@ -1,0 +1,16 @@
+# State Terraform tidak pernah masuk repositori: ia memuat seluruh atribut
+# sumber daya, termasuk yang tidak dimaksudkan terlihat. Tempatnya di bucket
+# S3 terenkripsi — DEPLOYMENT.md sec 2.3.
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl.bak
+
+# Berkas variabel yang mungkin memuat nilai khusus lingkungan.
+*.auto.tfvars
+terraform.tfvars
+
+# Rencana biner dapat memuat nilai rahasia yang terbaca apa adanya.
+*.tfplan
+
+.DS_Store
