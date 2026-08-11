@@ -147,6 +147,13 @@ resource "aws_lambda_function" "migrate" {
       # fungsi ini dibuat.
       PERAN = "migrasi"
 
+      # Fungsi ini dipanggil `lambda:InvokeFunction` biasa, bukan lewat HTTP.
+      # Adapter meneruskan payload invocation semacam itu sebagai POST ke jalur
+      # ini. Disetel terang-terangan alih-alih mengandalkan bawaan `/events`,
+      # supaya yang dilayani aplikasi dan yang dikirim adapter tertulis pada
+      # tempat yang sama-sama terbaca.
+      AWS_LWA_PASS_THROUGH_PATH = "/migrasi"
+
       # ARN, bukan nama. Nama rahasia terkelola RDS dibangkitkan beserta akhiran
       # acak sehingga tidak dapat disepakati di muka — CK-D-06.
       RAHASIA_OWNER = aws_db_instance.ini.master_user_secret[0].secret_arn
