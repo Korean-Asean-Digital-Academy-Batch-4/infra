@@ -48,9 +48,33 @@ variable "zona" {
 }
 
 variable "jenis_nat" {
-  description = "NAT instance, bukan NAT Gateway — Techstack.md §8.2. Selisihnya sekitar $30 per bulan."
+  description = <<-EOT
+    NAT instance, bukan NAT Gateway — Techstack.md §8.2. Selisihnya sekitar $30
+    per bulan.
+
+    `t4g.micro`, bukan `t4g.nano` — CK-19. Akun berjalan pada Free Plan, dan
+    `t4g.nano` **tidak** termasuk daftar tipe yang eligible di `ap-southeast-3`
+    sehingga `RunInstances` menolaknya. Tetap arm64: `t4g.micro` ada pada daftar
+    itu, jadi AMI-nya tidak perlu berganti arsitektur.
+
+    Daftar eligible region ini per 11 Agustus 2026 — `c7i-flex.large`,
+    `t4g.small`, `t4g.micro`, `t3.micro`, `t3.small`, `m7i-flex.large`. Periksa
+    ulang sebelum menggantinya:
+
+        aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true \
+          --query 'InstanceTypes[].InstanceType' --output text --region ap-southeast-3
+  EOT
   type        = string
-  default     = "t4g.nano"
+  default     = "t4g.micro"
+
+  # AMI-nya dibaca dari parameter SSM arm64 (`jaringan.tf`). Tipe x86 seperti
+  # `t3.micro` lolos sebagai teks, lalu gagal saat `RunInstances` dengan keluhan
+  # yang tidak menyebut arsitektur sama sekali. Ditolak di sini supaya
+  # kegagalannya muncul pada `plan`, bukan di tengah `apply`.
+  validation {
+    condition     = startswith(var.jenis_nat, "t4g.")
+    error_message = "jenis_nat wajib keluarga t4g — AMI NAT dipatok arm64. Untuk memakai tipe x86, ganti pula parameter SSM AMI pada jaringan.tf."
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -77,11 +101,25 @@ variable "penyimpanan_rds_gb" {
 
 variable "retensi_cadangan_hari" {
   description = <<-EOT
-    Pencadangan otomatis. Tujuh hari mengikuti Techstack.md §4.1; kebijakan
-    yang sesungguhnya menunggu **V6** pada ATURAN-DAN-KRITERIA §5.
+    Pencadangan otomatis. **Satu hari, bukan tujuh — CK-19.** Free Plan menolak
+    retensi di atas batasnya dengan `FreeTierRestrictionError`, dan galatnya
+    tidak menyebut angka maksimumnya.
+
+    **Apabila `apply` masih menolak nilai 1, turunkan ke 0 lewat
+    `terraform.tfvars`** — tanpa perubahan kode. Nilai 0 mematikan pencadangan
+    otomatis beserta point-in-time recovery seluruhnya.
+
+    Cadangan yang sesungguhnya bersandar pada **snapshot manual** yang
+    dijalankan sebelum tindakan berisiko, dan snapshot manual tidak dibatasi
+    retensi ini:
+
+        aws rds create-db-snapshot --db-instance-identifier edutrack \
+          --db-snapshot-identifier "edutrack-$(date +%Y%m%d-%H%M)" --region ap-southeast-3
+
+    Kebijakan yang sesungguhnya menunggu **V6** pada ATURAN-DAN-KRITERIA §5.
   EOT
   type        = number
-  default     = 7
+  default     = 1
 }
 
 variable "nama_basis_data" {

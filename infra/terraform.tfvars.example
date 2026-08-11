@@ -36,3 +36,23 @@ elice_base_url = "https://mlapi.run/GANTI-DENGAN-ID-ENDPOINT"
 # Nama model. Daftar nilai yang sah: GET {elice_base_url}/v1/models
 #
 # elice_model = "gemini-3.6-flash"
+
+# --- Kalau `apply` masih ditolak Free Plan --------------------------------
+#
+# Retensi cadangan otomatis. Bawaannya 1 hari (CK-19). Kalau RDS masih menolak
+# dengan FreeTierRestrictionError, turunkan ke 0 di sini — itu mematikan
+# pencadangan otomatis beserta point-in-time recovery, dan cadangan sepenuhnya
+# bersandar pada snapshot manual.
+#
+# retensi_cadangan_hari = 0
+
+# Tipe NAT instance. Bawaannya t4g.micro, yang eligible di ap-southeast-3 per
+# 11 Agustus 2026. Kalau daftarnya berubah, periksa dengan:
+#
+#   aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true \
+#     --query 'InstanceTypes[].InstanceType' --output text --region ap-southeast-3
+#
+# WAJIB keluarga t4g - AMI-nya arm64, dan tipe x86 seperti t3.micro akan gagal
+# menyala. Terraform menolaknya lewat blok validation pada variables.tf.
+#
+# jenis_nat = "t4g.small"
