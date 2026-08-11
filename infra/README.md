@@ -30,11 +30,15 @@ Sesinya berumur 4 jam. Sesudah itu perintah di atas diulang.
 terraform -chdir=infra init
 ```
 
-Nilai `elice_base_url` tidak memiliki bawaan. Taruh pada `infra/terraform.tfvars`, yang sudah tercantum pada `.gitignore`:
+Salin berkas contohnya, lalu isi `elice_base_url` — satu-satunya variabel yang tidak memiliki nilai bawaan. Salinannya sudah tercantum pada `.gitignore`:
 
 ```bash
-printf 'elice_base_url = "https://mlapi.run/<id-endpoint>"\n' > infra/terraform.tfvars
+cp infra/terraform.tfvars.example infra/terraform.tfvars
 ```
+
+Daftar variabel yang perlu diisi berada di [`terraform.tfvars.example`](terraform.tfvars.example) itu sendiri, bukan di halaman ini — daftar yang hidup di dua tempat akan menyimpang, dan yang menyimpang selalu yang jarang dibaca.
+
+Berkas itu **tidak pernah memuat rahasia**. Nilai variabel Terraform mendarat di dalam state maupun di dalam berkas rencana `.tfplan` apa adanya.
 
 ```bash
 terraform -chdir=infra plan -out=rencana.tfplan

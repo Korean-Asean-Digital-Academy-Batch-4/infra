@@ -1,0 +1,38 @@
+# Salin menjadi `terraform.tfvars`, lalu isi. Salinannya tidak masuk repositori
+# — `.gitignore` sudah menutupnya.
+#
+#     cp infra/terraform.tfvars.example infra/terraform.tfvars
+#
+# Hanya variabel TANPA nilai bawaan yang wajib ada di sini. Sisanya berada pada
+# `variables.tf` beserta alasan angkanya, dan hanya diisikan ke sini apabila
+# memang hendak diubah.
+#
+# ⚠️ Berkas ini TIDAK pernah memuat rahasia. Nilai variabel Terraform mendarat
+# di dalam state dan di dalam berkas rencana `.tfplan` apa adanya — Techstack.md
+# sec 7 butir 1, CK-D-05. Kunci API Elice, kata sandi basis data, dan kata sandi
+# master RDS seluruhnya berada di luar Terraform.
+
+# --- WAJIB ------------------------------------------------------------------
+
+# Berhenti pada id endpoint; jalur /v1/chat/completions ditambahkan adapter.
+# Id-nya terlihat pada halaman model Elice dan berbentuk UUID. Menuliskan
+# jalurnya di sini membuat alamatnya berlipat — payload.md sec 1.
+#
+# BUKAN rahasia: alamat endpoint tidak berguna tanpa kuncinya, dan kuncinya
+# berada di SSM Parameter Store.
+elice_base_url = "https://mlapi.run/GANTI-DENGAN-ID-ENDPOINT"
+
+# --- OPSIONAL ---------------------------------------------------------------
+
+# Nilai `sub` yang sungguh-sungguh dikirim GitHub bagi repositori frontend,
+# bukan format baku — organisasi ini menyalakan custom subject claim
+# (Gitaction.md). Selama kosong, role `edutrack-gha-frontend` tidak dibuat.
+#
+# Nilainya baru terbaca dari log diagnostik workflow repositori itu sendiri,
+# sehingga baru dapat diisi sesudah repositori frontend ada.
+#
+# sub_oidc_frontend = "repo:Korean-Asean-Digital-Academy-Batch-4@307598735/frontend@<id-repo>:ref:refs/heads/main"
+
+# Nama model. Daftar nilai yang sah: GET {elice_base_url}/v1/models
+#
+# elice_model = "gemini-3.6-flash"
