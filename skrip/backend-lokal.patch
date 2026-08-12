@@ -1,0 +1,25 @@
+diff --git a/bootstrap/versions.tf b/bootstrap/versions.tf
+index 20ce673..e1b34a4 100644
+--- a/bootstrap/versions.tf
++++ b/bootstrap/versions.tf
+@@ -17,13 +17,13 @@ terraform {
+   # Nama bucket wajib literal — blok backend tidak menerima variabel maupun
+   # data source, sehingga ID akun ditulis apa adanya. Ia bukan rahasia: setiap
+   # ARN yang dipakai sehari-hari sudah memuatnya.
+-  backend "s3" {
+-    bucket       = "edutrack-tfstate-274286556151"
+-    key          = "bootstrap/terraform.tfstate"
+-    region       = "ap-southeast-3"
+-    encrypt      = true
+-    use_lockfile = true
+-  }
++  # backend "s3" {
++  #   bucket       = "edutrack-tfstate-274286556151"
++  #   key          = "bootstrap/terraform.tfstate"
++  #   region       = "ap-southeast-3"
++  #   encrypt      = true
++  #   use_lockfile = true
++  # }
+ }
+ 
+ provider "aws" {

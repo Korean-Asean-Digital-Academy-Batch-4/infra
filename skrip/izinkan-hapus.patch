@@ -1,0 +1,50 @@
+diff --git a/bootstrap/main.tf b/bootstrap/main.tf
+index fa52b92..f9faab8 100644
+--- a/bootstrap/main.tf
++++ b/bootstrap/main.tf
+@@ -92,13 +92,6 @@ data "aws_iam_policy_document" "state_wajib_tls" {
+ resource "aws_ecr_repository" "app" {
+   name = var.nama_ecr
+ 
+-  # Lambda version mengunci digest image. Menghapus repositori ini membuat
+-  # setiap version yang pernah diterbitkan tidak dapat dijalankan lagi,
+-  # sehingga rollback kehilangan sasarannya — DEPLOYMENT.md §2.5.
+-  lifecycle {
+-    prevent_destroy = true
+-  }
+-
+   # MUTABLE, bukan IMMUTABLE. Tag `:bootstrap` didorong ulang setiap kali
+   # lingkungan dibangun kembali dari nol, dan IMMUTABLE membuat langkah 2 pada
+   # §2.3 gagal pada percobaan kedua. Tag rilis sendiri berupa git SHA, sehingga
+diff --git a/infra/data.tf b/infra/data.tf
+index b89b451..b99ab3a 100644
+--- a/infra/data.tf
++++ b/infra/data.tf
+@@ -84,10 +84,6 @@ resource "aws_db_instance" "ini" {
+   # dengan keluhan nama yang sudah dipakai.
+   skip_final_snapshot       = var.izinkan_hapus
+   final_snapshot_identifier = var.izinkan_hapus ? null : "edutrack-akhir"
+-
+-  lifecycle {
+-    prevent_destroy = true
+-  }
+ }
+ 
+ # ---------------------------------------------------------------------------
+diff --git a/infra/penyajian.tf b/infra/penyajian.tf
+index 657729f..008d9b5 100644
+--- a/infra/penyajian.tf
++++ b/infra/penyajian.tf
+@@ -26,12 +26,6 @@ resource "aws_s3_bucket" "rapor" {
+   # yang ikut terbawa `pg_dump`, sehingga yang hilang hanya hasil perhitungan,
+   # bukan sumbernya.
+   force_destroy = var.izinkan_hapus
+-
+-  # Berkas rapor adalah satu-satunya turunan yang tidak dapat dihitung ulang
+-  # apabila salinan bekunya ikut hilang — DEPLOYMENT.md §2.5.
+-  lifecycle {
+-    prevent_destroy = true
+-  }
+ }
+ 
+ resource "aws_s3_bucket_public_access_block" "rapor" {
