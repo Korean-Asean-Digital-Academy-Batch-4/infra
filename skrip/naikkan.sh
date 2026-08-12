@@ -34,6 +34,7 @@ TMP=""
 bersihkan() {
   local kode=$?
   tutup_tunnel
+  cabut_izin_nat_ke_rds
   [[ -n $TMP ]] && rm -rf "$TMP"
   if ((PATCH_TERPASANG)); then
     git -C "$AKAR" checkout -- bootstrap/versions.tf 2>/dev/null || true
@@ -175,6 +176,7 @@ fi
 
 # --- Basis data -------------------------------------------------------------
 
+izinkan_nat_ke_rds
 buka_tunnel
 TMP="$(umask 077 && mktemp -d)"
 SANDI_OWNER="$(sandi_owner)"
@@ -238,7 +240,7 @@ for peran in app_rw app_ro; do
   aws secretsmanager get-secret-value --secret-id "edutrack/db/$peran" \
     --region "$REGION" --query SecretString --output text | jq -r .password >"$TMP/uji"
   PGPASSWORD="$(cat "$TMP/uji")" psql \
-    "host=127.0.0.1 port=$PORTA_LOKAL dbname=edutrack user=$peran sslmode=require" \
+    "host=127.0.0.1 port=$PORTA_LOKAL dbname=edutrack user=$peran sslmode=require connect_timeout=15" \
     -qtAX -c 'SELECT 1' >/dev/null ||
     galat "$peran tidak dapat masuk memakai kata sandi yang dibaca balik dari Secrets Manager."
   baik "$peran — tersimpan dan terbukti dapat masuk"
@@ -248,6 +250,7 @@ unset SANDI_OWNER
 rm -rf "$TMP"
 TMP=""
 tutup_tunnel
+cabut_izin_nat_ke_rds
 
 if ((!RILIS)); then
   tahap "Berhenti atas permintaan --tanpa-rilis"

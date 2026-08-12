@@ -23,7 +23,18 @@ diwakilkan: kode MFA dari ponsel, dan kunci API Elice. Seluruh rahasia lain
 dibangkitkan — RDS membangkitkan kata sandi masternya sendiri (CK-D-06), dan
 `naikkan.sh` membangkitkan kata sandi `app_rw` dan `app_ro`.
 
-## Empat hal yang paling mudah salah
+## Lima hal yang paling mudah salah
+
+0. **Tunnel SSM saja tidak cukup — security group harus dibuka sebentar.**
+   `edutrack-rds` hanya menerima dari security group Lambda; NAT instance
+   memakai security group tersendiri dan tidak ada di daftar itu. Port
+   forwarding lewat dirinya tersambung di sisi lokal tetapi tidak pernah
+   sampai: paketnya dibuang **diam-diam**, sehingga `psql` menggantung
+   selamanya alih-alih ditolak. Kedua skrip membuka aturannya sebentar lalu
+   mencabutnya lewat `trap` — sama seperti yang dikerjakan dengan tangan pada
+   12 Agustus 2026. `connect_timeout=15` dipasang supaya kesunyian semacam itu
+   berubah menjadi kegagalan yang terbaca.
+
 
 1. **`prevent_destroy` tidak dapat dijadikan variabel.** Terraform melarang
    variabel di dalam blok `lifecycle`, dan berkas overlay juga tidak menolong

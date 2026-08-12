@@ -106,13 +106,68 @@ keluaran() {
     galat "Output Terraform '$1' tidak terbaca. Apakah infra/ sudah di-apply?"
 }
 
+# --- Jalan masuk sementara --------------------------------------------------
+#
+# `edutrack-rds` hanya menerima dari security group Lambda (jaringan.tf). NAT
+# instance memakai security group tersendiri, sehingga port forwarding lewat
+# dirinya TIDAK tersambung: paketnya dibuang diam-diam, dan psql menunggu
+# jawaban yang tidak akan pernah datang alih-alih gagal.
+#
+# Aturannya karenanya dibuka sebentar lalu dicabut kembali — persis yang
+# dikerjakan dengan tangan pada 12 Agustus 2026 (KEMAJUAN.md). Ia sengaja TIDAK
+# dijadikan sumber daya Terraform: jalan masuk yang berdiri tetap melemahkan
+# postur yang justru menjadi maksud subnet privat-data.
+
+ID_ATURAN_SEMENTARA=""
+
+sg_id() {
+  aws ec2 describe-security-groups --region "$REGION" \
+    --filters "Name=group-name,Values=$1" \
+    --query 'SecurityGroups[0].GroupId' --output text
+}
+
+izinkan_nat_ke_rds() {
+  local sg_rds sg_nat
+  sg_rds="$(sg_id edutrack-rds)"
+  sg_nat="$(sg_id edutrack-nat)"
+  [[ $sg_rds == sg-* && $sg_nat == sg-* ]] ||
+    galat "Security group edutrack-rds atau edutrack-nat tidak ditemukan."
+
+  tahap "Membuka jalan masuk sementara NAT → RDS"
+  ID_ATURAN_SEMENTARA="$(aws ec2 authorize-security-group-ingress \
+    --region "$REGION" --group-id "$sg_rds" \
+    --ip-permissions "IpProtocol=tcp,FromPort=5432,ToPort=5432,UserIdGroupPairs=[{GroupId=$sg_nat,Description='sementara - skrip/lib-sesi.sh'}]" \
+    --query 'SecurityGroupRules[0].SecurityGroupRuleId' --output text 2>/dev/null)" || true
+
+  if [[ $ID_ATURAN_SEMENTARA == sgr-* ]]; then
+    SG_RDS_DIPAKAI="$sg_rds"
+    baik "$ID_ATURAN_SEMENTARA — akan dicabut sendiri saat skrip keluar"
+  else
+    # Sudah ada aturannya. Ia bukan buatan skrip ini, sehingga TIDAK boleh ikut
+    # dicabut — mencabut milik orang lain adalah perubahan yang tidak diminta.
+    ID_ATURAN_SEMENTARA=""
+    ingat "Jalan masuk sudah ada sebelumnya — dibiarkan apa adanya."
+  fi
+}
+
+cabut_izin_nat_ke_rds() {
+  [[ -n $ID_ATURAN_SEMENTARA ]] || return 0
+  aws ec2 revoke-security-group-ingress --region "$REGION" \
+    --group-id "$SG_RDS_DIPAKAI" \
+    --security-group-rule-ids "$ID_ATURAN_SEMENTARA" >/dev/null 2>&1 &&
+    printf '    Jalan masuk sementara dicabut.\n' ||
+    ingat "GAGAL mencabut $ID_ATURAN_SEMENTARA pada $SG_RDS_DIPAKAI — cabut dengan tangan."
+  ID_ATURAN_SEMENTARA=""
+}
+
 # --- Tunnel SSM -------------------------------------------------------------
 #
 # RDS berada di subnet privat-data yang tidak memiliki rute keluar sama sekali.
 # Satu-satunya jalan menuju ke sana adalah port forwarding lewat NAT instance,
-# tanpa SSH dan tanpa membuka satu pun aturan security group.
+# tanpa SSH.
 
 PID_TUNNEL=""
+SG_RDS_DIPAKAI=""
 
 buka_tunnel() {
   local id_nat inang
@@ -164,10 +219,15 @@ sandi_owner() {
 }
 
 # Argumen psql diteruskan apa adanya. Kata sandi tidak pernah masuk ke `argv`.
+#
+# `connect_timeout` WAJIB ada. Tanpanya, jalur yang diblokir security group
+# tidak menghasilkan penolakan melainkan kesunyian: paketnya dibuang, dan psql
+# menunggu selamanya. Kegagalan yang tidak pernah tiba jauh lebih mahal
+# daripada kegagalan yang tiba dalam 15 detik.
+KONEKSI_OWNER="host=127.0.0.1 port=$PORTA_LOKAL dbname=edutrack user=edutrack_owner sslmode=require connect_timeout=15"
+
 psql_owner() {
-  PGPASSWORD="$SANDI_OWNER" psql \
-    "host=127.0.0.1 port=$PORTA_LOKAL dbname=edutrack user=edutrack_owner sslmode=require" \
-    -v ON_ERROR_STOP=1 "$@"
+  PGPASSWORD="$SANDI_OWNER" psql "$KONEKSI_OWNER" -v ON_ERROR_STOP=1 "$@"
 }
 
 # --- Sidik jari data --------------------------------------------------------

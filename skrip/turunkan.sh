@@ -40,6 +40,7 @@ TMP=""
 bersihkan() {
   local kode=$?
   tutup_tunnel
+  cabut_izin_nat_ke_rds
   [[ -n $TMP ]] && rm -rf "$TMP"
   if ((PATCH_TERPASANG)); then
     git -C "$AKAR" checkout -- bootstrap/main.tf infra/data.tf infra/penyajian.tf 2>/dev/null || true
@@ -67,6 +68,7 @@ sesi_mfa
 # --- Pencadangan ------------------------------------------------------------
 
 if ((DUMP)); then
+  izinkan_nat_ke_rds
   buka_tunnel
   mkdir -p "$DIR_DUMP"
   SANDI_OWNER="$(sandi_owner)"
@@ -102,6 +104,7 @@ if ((DUMP)); then
 
   unset SANDI_OWNER
   tutup_tunnel
+  cabut_izin_nat_ke_rds
 else
   ingat "Pencadangan dilewati atas permintaan --tanpa-dump."
 fi
