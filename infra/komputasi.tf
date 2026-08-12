@@ -54,6 +54,9 @@ resource "aws_lambda_function" "api" {
   # version menjadi rebutan dua sistem — DEPLOYMENT.md §2.2.
   publish = false
 
+  # -1 berarti tidak menyetel reservasi sama sekali — CK-A-11. Remnya berpindah
+  # ke plafon concurrency akun, yang justru lebih ketat daripada 40 tetapi tidak
+  # tertulis di repositori mana pun. Lihat pemicu peninjauan pada variables.tf.
   reserved_concurrent_executions = var.concurrency_api
 
   vpc_config {
@@ -128,11 +131,11 @@ resource "aws_lambda_function" "migrate" {
 
   publish = false
 
-  # Satu, dan itu bukan penghematan. Migrasi yang berjalan berbarengan adalah
-  # keadaan yang penerapnya memang cegah lewat advisory lock; membatasinya di
-  # sini membuat pemanggilan kedua ditolak seketika alih-alih menunggu kunci
-  # sampai batas waktu habis.
-  reserved_concurrent_executions = 1
+  # Semula 1, supaya pemanggilan kedua ditolak seketika alih-alih menunggu kunci
+  # sampai batas waktu habis. Dicabut oleh CK-A-11: reservasi sebesar 1 pun
+  # ditolak selama plafon concurrency akun masih rendah. Yang mencegah migrasi
+  # berbarengan kini hanya advisory lock di dalam penerap.
+  reserved_concurrent_executions = var.concurrency_migrate
 
   vpc_config {
     subnet_ids         = aws_subnet.privat_app[*].id

@@ -167,12 +167,46 @@ variable "batas_waktu_migrate_detik" {
 
 variable "concurrency_api" {
   description = <<-EOT
-    Rem terakhir. Plafon `db.t4g.micro` sekitar 106 koneksi, sehingga 40
-    instance serentak tetap aman. Request ke-41 memperoleh 429 yang dapat
-    diulang — ARCHITECTURE.md Pasal 6, CK-18.
+    Reserved concurrency fungsi `api`. **`-1` berarti tidak menyetelnya sama
+    sekali**, dan itulah bawaannya — CK-A-11.
+
+    Angka 40 pada ARCHITECTURE.md Pasal 6 tidak dapat dipakai selama plafon
+    concurrency akun masih rendah: AWS menolak setiap reservasi yang menyisakan
+    `UnreservedConcurrentExecution` di bawah 10. Reservasi sebesar 1 pun
+    ditolak, sehingga tidak ada nilai yang dapat disetel.
+
+    Remnya berpindah ke plafon akun, dan justru lebih ketat. **Pasang kembali
+    40 segera setelah plafon mencapai 50** — di bawah itu reservasinya ditolak:
+
+        aws lambda get-account-settings --region ap-southeast-3 \
+          --query 'AccountLimit.ConcurrentExecutions'
   EOT
   type        = number
-  default     = 40
+  default     = -1
+
+  validation {
+    condition     = var.concurrency_api == -1 || var.concurrency_api >= 1
+    error_message = "concurrency_api bernilai -1 (tidak menyetel reservasi) atau bilangan bulat positif."
+  }
+}
+
+variable "concurrency_migrate" {
+  description = <<-EOT
+    Reserved concurrency fungsi `migrate`. **`-1` berarti tidak menyetelnya**,
+    dan itulah bawaannya — CK-A-11.
+
+    Semula 1, supaya pemanggilan kedua ditolak seketika alih-alih menunggu
+    kunci sampai batas waktu habis. Yang mencegah migrasi berbarengan kini
+    hanya advisory lock di dalam penerap, sebagaimana memang dirancang sejak
+    awal; yang hilang hanya penolakan cepatnya.
+  EOT
+  type        = number
+  default     = -1
+
+  validation {
+    condition     = var.concurrency_migrate == -1 || var.concurrency_migrate >= 1
+    error_message = "concurrency_migrate bernilai -1 (tidak menyetel reservasi) atau bilangan bulat positif."
+  }
 }
 
 variable "retensi_log_hari" {

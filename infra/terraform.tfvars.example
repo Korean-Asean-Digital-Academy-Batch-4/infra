@@ -56,3 +56,17 @@ elice_base_url = "https://mlapi.run/GANTI-DENGAN-ID-ENDPOINT"
 # menyala. Terraform menolaknya lewat blok validation pada variables.tf.
 #
 # jenis_nat = "t4g.small"
+
+# --- Ketika plafon concurrency akun sudah naik ------------------------------
+#
+# Bawaannya -1, yaitu TIDAK menyetel reserved concurrency sama sekali (CK-A-11).
+# AWS menolak reservasi berapa pun selama plafon akun masih di bawah 11.
+#
+# Pasang kembali 40 pada api segera setelah plafon mencapai 50 - di bawah itu
+# reservasinya ditolak karena menyisakan kurang dari 10:
+#
+#   aws lambda get-account-settings --region ap-southeast-3 \
+#     --query 'AccountLimit.ConcurrentExecutions'
+#
+# concurrency_api     = 40
+# concurrency_migrate = 1
