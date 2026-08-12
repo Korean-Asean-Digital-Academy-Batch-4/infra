@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "gha_backend" {
     resources = [data.aws_ecr_repository.app.arn]
   }
 
-  # Lima tindakan, tidak lebih. Yang justru penting adalah yang TIDAK ada di
+  # Tujuh tindakan, tidak lebih. Yang justru penting adalah yang TIDAK ada di
   # sini: `CreateFunction`, `UpdateFunctionConfiguration`, `DeleteFunction`, dan
   # `iam:PassRole`.
   #
@@ -89,6 +89,16 @@ data "aws_iam_policy_document" "gha_backend" {
   # pada CK-D-02: Terraform memiliki cangkang fungsi, CI hanya menukar isinya.
   # Karena CI tidak pernah membuat maupun mengonfigurasi ulang fungsi, izin
   # paling berbahaya itu dapat dihilangkan sepenuhnya — DEPLOYMENT.md §9.4.
+  #
+  # ⚠️ `GetFunctionConfiguration` diizinkan, `UpdateFunctionConfiguration` TIDAK.
+  # Namanya nyaris sama dan perbedaannya menentukan: yang pertama hanya melihat
+  # cangkang, yang kedua mengubahnya — dan cangkang dimiliki Terraform.
+  #
+  # `GetFunctionConfiguration` dan `GetAlias` ditambahkan 12 Agustus 2026 setelah
+  # rilis pertama gagal. Yang menuntut keduanya bukan perintah yang terlihat pada
+  # workflow, melainkan yang tersembunyi di dalamnya: `aws lambda wait
+  # function-updated` memanggil `GetFunctionConfiguration` berulang — bukan
+  # `GetFunction` — dan langkah rollback membaca alias sebelum memindahkannya.
   statement {
     sid    = "RilisDuaFungsi"
     effect = "Allow"
@@ -97,6 +107,7 @@ data "aws_iam_policy_document" "gha_backend" {
       "lambda:PublishVersion",
       "lambda:UpdateAlias",
       "lambda:GetFunction",
+      "lambda:GetFunctionConfiguration",
       "lambda:GetAlias",
       "lambda:InvokeFunction",
     ]
