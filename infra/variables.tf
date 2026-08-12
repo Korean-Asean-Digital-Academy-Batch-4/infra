@@ -278,3 +278,33 @@ variable "sub_oidc_frontend" {
   type        = string
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# Pembongkaran — dipakai `skrip/turunkan.sh`
+# ---------------------------------------------------------------------------
+
+variable "izinkan_hapus" {
+  description = <<-EOT
+    Membuka empat pengaman yang menghalangi pembongkaran lingkungan. Bawaannya
+    `false`, dan sehari-hari ia TIDAK PERNAH disebut — nilainya hanya diberikan
+    `skrip/turunkan.sh` lewat `-var izinkan_hapus=true`.
+
+    Yang dibukanya:
+
+      deletion_protection      RDS         true  → false
+      skip_final_snapshot      RDS         false → true   (dump menggantikannya)
+      recovery_window_in_days  rahasia     7     → 0      (nama langsung bebas)
+      force_destroy            kedua bucket -    → true
+
+    **`prevent_destroy` TIDAK ada di daftar ini, dan itu bukan kelalaian.**
+    Terraform melarang variabel di dalam blok `lifecycle`, sehingga ia tidak
+    dapat dijadikan syarat. Ia dibuka lewat `skrip/izinkan-hapus.patch`, yang
+    diterapkan dan dicabut kembali `turunkan.sh` — lihat DEPLOYMENT.md §2.5.
+
+    Nilai `true` yang tertinggal pada `terraform.tfvars` melucuti seluruh
+    pengaman tanpa terlihat pada `plan` yang tampak biasa saja. Ia tidak pernah
+    dituliskan ke berkas; hanya diberikan pada baris perintah, sekali pakai.
+  EOT
+  type        = bool
+  default     = false
+}

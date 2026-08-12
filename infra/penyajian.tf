@@ -17,6 +17,16 @@ locals {
 resource "aws_s3_bucket" "rapor" {
   bucket = local.nama_bucket_rapor
 
+  # `destroy` menolak bucket yang masih berisi objek, dan penolakan itu muncul
+  # di tengah pembongkaran ketika sebagian sumber daya sudah hilang. Dibuka
+  # hanya bersama `izinkan_hapus`; sehari-hari nilainya `false`, sehingga
+  # `apply` yang keliru tetap tidak dapat mengosongkan bucket ini.
+  #
+  # Berkas PDF di dalamnya dapat dirender ulang dari salinan beku `rapor_mapel`
+  # yang ikut terbawa `pg_dump`, sehingga yang hilang hanya hasil perhitungan,
+  # bukan sumbernya.
+  force_destroy = var.izinkan_hapus
+
   # Berkas rapor adalah satu-satunya turunan yang tidak dapat dihitung ulang
   # apabila salinan bekunya ikut hilang — DEPLOYMENT.md §2.5.
   lifecycle {
@@ -109,6 +119,11 @@ data "aws_iam_policy_document" "rapor_wajib_tls" {
 
 resource "aws_s3_bucket" "frontend" {
   bucket = local.nama_bucket_frontend
+
+  # Isinya seluruhnya hasil `vite build` dan dapat disusun ulang kapan saja,
+  # sehingga di sini tidak ada yang perlu dijaga selain menghindari kegagalan
+  # `destroy` di tengah jalan.
+  force_destroy = var.izinkan_hapus
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend" {

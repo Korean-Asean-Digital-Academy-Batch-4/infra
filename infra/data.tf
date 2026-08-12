@@ -75,10 +75,15 @@ resource "aws_db_instance" "ini" {
   # karena keduanya menjaga hal yang berbeda: `prevent_destroy` menghentikan
   # Terraform, `deletion_protection` menghentikan siapa pun lewat konsol maupun
   # CLI.
-  deletion_protection = true
+  deletion_protection = !var.izinkan_hapus
 
-  skip_final_snapshot       = false
-  final_snapshot_identifier = "edutrack-akhir"
+  # Cadangan sebelum pembongkaran berupa `pg_dump`, bukan snapshot akhir —
+  # berkasnya dapat dipulihkan ke Postgres mana pun termasuk Docker setempat,
+  # sedangkan snapshot hanya dapat menjadi instance RDS baru di akun ini juga.
+  # Snapshot akhir juga bernama tetap, sehingga pembongkaran KEDUA akan gagal
+  # dengan keluhan nama yang sudah dipakai.
+  skip_final_snapshot       = var.izinkan_hapus
+  final_snapshot_identifier = var.izinkan_hapus ? null : "edutrack-akhir"
 
   lifecycle {
     prevent_destroy = true
@@ -103,12 +108,15 @@ resource "aws_secretsmanager_secret" "app_rw" {
   # Tujuh hari, bukan tiga puluh hari bawaan. Nama rahasia yang dihapus tetap
   # terpakai selama masa pemulihan, sehingga membangun ulang lingkungan dalam
   # sebulan akan gagal dengan keluhan nama yang sudah ada.
-  recovery_window_in_days = 7
+  #
+  # Nol pada saat pembongkaran, karena justru itulah maksudnya: membangun ulang
+  # pada hari yang sama harus dapat memakai nama yang sama.
+  recovery_window_in_days = var.izinkan_hapus ? 0 : 7
 }
 
 resource "aws_secretsmanager_secret" "app_ro" {
   name        = "edutrack/db/app_ro"
   description = "Kredensial app_ro - jalur AI, tanpa hak tulis. Isi dibuat manusia."
 
-  recovery_window_in_days = 7
+  recovery_window_in_days = var.izinkan_hapus ? 0 : 7
 }
