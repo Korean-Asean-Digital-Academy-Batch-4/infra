@@ -34,41 +34,58 @@ sha256() {
   fi
 }
 
-# Membandingkan sidik jari body yang dikirim dengan yang diterima fungsi.
+# Memeriksa KEDUA sisi kontrak CK-A-12 sekaligus:
 #
-# Perbandingan sidik jari, bukan perbandingan panjang. Body yang dipotong akan
-# tertangkap oleh keduanya, tetapi body yang berubah isinya - misalnya karena
-# penyandian ulang di tengah jalan - hanya tertangkap sidik jari.
+#   1. tanpa `x-amz-content-sha256` request WAJIB ditolak 403
+#   2. dengan header itu request lolos, dan body sampai utuh
+#
+# Butir 1 sama pentingnya dengan butir 2. Kalau suatu hari ia mulai lolos, yang
+# berubah adalah perilaku layanan AWS - dan CK-A-12 beserta pembungkus fetch di
+# frontend perlu ditinjau ulang.
+#
+# Yang dibandingkan sidik jari, bukan panjang. Body yang dipotong tertangkap
+# keduanya; body yang berubah isinya karena penyandian ulang hanya tertangkap
+# sidik jari.
 periksa() {
   local nama="$1" metode="$2" badan="$3"
 
   local harapan
   harapan=$(printf '%s' "$badan" | sha256)
 
-  local jawaban status isi
-  jawaban=$(curl -sS -o /dev/null -w '%{http_code}' -X "$metode" "$DASAR/api/uji-body" \
+  local tanpa
+  tanpa=$(curl -sS -o /dev/null -w '%{http_code}' -X "$metode" "$DASAR/api/uji-body" \
     -H 'content-type: application/json' --data-binary "$badan" 2>/dev/null || echo "000")
-  status="$jawaban"
+  if [ "$tanpa" != "403" ]; then
+    printf '  GAGAL  %-28s tanpa header dijawab %s, SEHARUSNYA 403 (CK-A-12)\n' "$nama" "$tanpa"
+    GAGAL=$((GAGAL + 1))
+    return
+  fi
+
+  local status isi
+  status=$(curl -sS -o /dev/null -w '%{http_code}' -X "$metode" "$DASAR/api/uji-body" \
+    -H 'content-type: application/json' -H "x-amz-content-sha256: $harapan" \
+    --data-binary "$badan" 2>/dev/null || echo "000")
 
   if [ "$status" != "200" ]; then
-    printf '  GAGAL  %-28s status %s\n' "$nama" "$status"
+    printf '  GAGAL  %-28s dengan header dijawab %s\n' "$nama" "$status"
     if [ "$status" = "403" ]; then
-      echo "         403 pada request ber-body berarti tanda tangan SigV4 tidak cocok."
-      echo "         Periksa origin request policy AllViewerExceptHostHeader."
+      echo "         Sidik jari yang dikirim tidak cocok dengan body yang sampai,"
+      echo "         atau izin lambda:InvokeFunction belum ada — DEPLOYMENT §5.2."
     fi
     GAGAL=$((GAGAL + 1))
     return
   fi
 
   isi=$(curl -sS -X "$metode" "$DASAR/api/uji-body" \
-    -H 'content-type: application/json' --data-binary "$badan")
+    -H 'content-type: application/json' -H "x-amz-content-sha256: $harapan" \
+    --data-binary "$badan")
 
   local diterima panjang
   diterima=$(printf '%s' "$isi" | sed -n 's/.*"sha256":"\([0-9a-f]*\)".*/\1/p')
   panjang=$(printf '%s' "$isi" | sed -n 's/.*"panjang_diterima":\([0-9]*\).*/\1/p')
 
   if [ "$diterima" = "$harapan" ]; then
-    printf '  LULUS  %-28s %s bita, sidik jari cocok\n' "$nama" "$panjang"
+    printf '  LULUS  %-28s %s bita — tanpa header 403, dengan header cocok\n' "$nama" "$panjang"
     LULUS=$((LULUS + 1))
   else
     printf '  GAGAL  %-28s sidik jari BERBEDA\n' "$nama"

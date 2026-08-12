@@ -307,22 +307,23 @@ resource "aws_cloudfront_distribution" "ini" {
     response_headers_policy_id = aws_cloudfront_response_headers_policy.keamanan.id
   }
 
-  # React SPA: setiap path yang bukan berkas dilayani index.html, dan
-  # peruteannya diselesaikan di peramban. Hanya berlaku pada origin frontend —
-  # `/api/*` memiliki perilakunya sendiri, sehingga 404 dari API tetap 404.
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
-
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
+  # TIDAK ADA `custom_error_response`, dan ketiadaannya disengaja.
+  #
+  # Blok itu semula dipasang untuk perutean React SPA: setiap path yang bukan
+  # berkas dilayani `/index.html`. Ia dicabut karena **berlaku se-distribusi,
+  # bukan per-behavior** — CloudFront tidak mengenal error response per
+  # perilaku. Akibatnya setiap 403 dan 404 dari `/api/*` ikut dibelokkan ke
+  # `/index.html`, sehingga:
+  #
+  #   - kontrak API rusak: 404 berubah menjadi 200 berisi HTML, dan amplop
+  #     `kesalahan` pada API.md §2 tidak pernah sampai ke pemanggil
+  #   - galat yang sesungguhnya tertutup, karena yang terlihat justru jawaban
+  #     bucket frontend
+  #
+  # Perutean SPA diselesaikan kelak lewat CloudFront Function pada perilaku
+  # bawaan saja, ketika repositori frontend ada. Sampai saat itu, deep link
+  # yang dimuat ulang menjawab 403 dari S3 — dan tidak ada satu pun yang
+  # memakainya, karena frontend-nya belum ada.
 
   restrictions {
     geo_restriction {
@@ -339,14 +340,42 @@ resource "aws_cloudfront_distribution" "ini" {
 }
 
 # Function URL beraut AWS_IAM hanya menerima request bertanda tangan SigV4 dari
-# distribusi yang ditunjuk. Tanpa izin ini, OAC menandatangani dengan benar dan
-# tetap ditolak — ARCHITECTURE.md §12.
+# distribusi yang ditunjuk — ARCHITECTURE.md §12.
+#
+# ⚠️ DUA IZIN, BUKAN SATU. Ini yang paling mudah terlewat, dan gejalanya adalah
+# 403 pada setiap request — termasuk `GET` tanpa body — dengan kebijakan yang
+# tampak persis benar di layar.
+#
+# `lambda:InvokeFunctionUrl` saja tidak cukup: CloudFront juga memerlukan
+# `lambda:InvokeFunction`. Dokumentasi OAC AWS menyebutkan keduanya sebagai dua
+# perintah `add-permission` terpisah, dan yang kedua mudah terbaca sebagai
+# pengulangan yang pertama.
+#
+# Ditemukan 12 Agustus 2026 setelah lima `apply`. Yang menyesatkan: pengujian
+# dengan kredensial manusia lolos, karena role `edutrack-terraform`
+# ber-AdministratorAccess sehingga memiliki KEDUA izin — sementara principal
+# CloudFront hanya memiliki yang pertama.
+
 resource "aws_lambda_permission" "cloudfront" {
-  statement_id           = "IzinkanCloudFront"
-  action                 = "lambda:InvokeFunctionUrl"
-  function_name          = aws_lambda_function.api.function_name
-  qualifier              = aws_lambda_alias.live.name
-  principal              = "cloudfront.amazonaws.com"
-  source_arn             = aws_cloudfront_distribution.ini.arn
-  function_url_auth_type = "AWS_IAM"
+  statement_id  = "IzinkanCloudFront"
+  action        = "lambda:InvokeFunctionUrl"
+  function_name = aws_lambda_function.api.function_name
+  qualifier     = aws_lambda_alias.live.name
+  principal     = "cloudfront.amazonaws.com"
+  source_arn    = aws_cloudfront_distribution.ini.arn
+
+  # `function_url_auth_type` TIDAK disetel. Menyetelnya membuat Terraform
+  # menambahkan syarat `lambda:FunctionUrlAuthType = AWS_IAM`, dan contoh
+  # kebijakan OAC pada dokumentasi AWS tidak memuatnya. Yang menegakkan auth
+  # type berada di tempat lain: `aws_lambda_function_url.api`.
 }
+
+resource "aws_lambda_permission" "cloudfront_invoke" {
+  statement_id  = "IzinkanCloudFrontInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  qualifier     = aws_lambda_alias.live.name
+  principal     = "cloudfront.amazonaws.com"
+  source_arn    = aws_cloudfront_distribution.ini.arn
+}
+

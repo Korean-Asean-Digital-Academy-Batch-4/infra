@@ -24,6 +24,12 @@ resource "aws_db_parameter_group" "ini" {
   parameter {
     name  = "rds.force_ssl"
     value = "1"
+    # WAJIB ditulis meskipun ini memang nilai yang dipilih RDS sendiri.
+    # `rds.force_ssl` bersifat statis, sehingga RDS menyetel `apply_method`
+    # menjadi `pending-reboot`; konfigurasi yang tidak menyebutkannya berselisih
+    # dengan keadaan itu pada SETIAP `plan`. Selisih abadi melumpuhkan deteksi
+    # drift §2.6 — orang berhenti membaca `plan` yang tidak pernah bersih.
+    apply_method = "pending-reboot"
   }
 
   lifecycle {

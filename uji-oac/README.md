@@ -6,6 +6,13 @@
 | **Diwajibkan** | [ARCHITECTURE.md §12.2](../../context/ARCHITECTURE.md), peringatan kedua |
 | **Kapan** | **Hari pertama infrastruktur naik**, sementara image `:bootstrap` masih terpasang |
 | **Dinilai oleh** | **Manusia.** Skrip melaporkan angka; yang menyimpulkan orang — [AGENTS.md §8.2](../../context/AGENTS.md) |
+| **Keadaan** | ✅ **Selesai 12 Agustus 2026 — 5 lulus, 0 gagal.** Hasilnya menjadi **CK-A-12** pada [ARCHITECTURE.md](../../context/ARCHITECTURE.md) |
+
+> ## Jawabannya: ya, dan ada syaratnya
+>
+> Request ber-body **wajib** membawa header `x-amz-content-sha256` berisi SHA-256 heksadesimal dari body. Tanpanya `POST` dan `PATCH` dijawab **403**, sementara seluruh jalur `GET` tetap sehat — sehingga kegagalannya hanya menyentuh jalur tulis.
+>
+> Skrip ini kini menguji **kedua sisi** kontrak itu: tanpa header wajib ditolak, dengan header wajib lolos beserta sidik jari yang cocok. Ketentuan lengkapnya pada CK-A-12; dua jebakan penaikannya pada [DEPLOYMENT §5.2](../../context/DEPLOYMENT.md).
 
 ## Apa yang sesungguhnya diuji
 
@@ -48,10 +55,18 @@ Yang dibandingkan **sidik jari SHA-256**, bukan panjangnya. Body yang terpotong 
 | Gejala | Artinya | Yang dilakukan |
 |---|---|---|
 | Seluruhnya lulus | Susunan OAC menandatangani dan meneruskan body dengan benar | Catat hasilnya di [KEMAJUAN.md](../../context/KEMAJUAN.md), lanjut ke B5 |
-| Uji 1 gagal | Bukan persoalan body. OAC, izin `lambda:InvokeFunctionUrl`, atau perilaku `/api/*` yang belum benar | Perbaiki itu dahulu; sisa uji tidak bermakna |
-| `403` hanya pada uji ber-body | Tanda tangan mencakup body, dan body berubah di tengah jalan | Periksa origin request policy — wajib `AllViewerExceptHostHeader`. Pastikan tidak ada CloudFront Function maupun Lambda@Edge yang menyentuh body |
+| Uji 1 gagal — `GET` pun `403` | Bukan persoalan body sama sekali. **Dugaan pertama: izin `lambda:InvokeFunction` hilang** — OAC menuntut dua izin, bukan satu ([DEPLOYMENT §5.2](../../context/DEPLOYMENT.md)) | Perbaiki itu dahulu; sisa uji tidak bermakna |
+| `GET` lolos, `403` hanya pada uji ber-body **dengan header** | Sidik jari yang dikirim tidak cocok dengan body yang sampai | Periksa origin request policy — wajib `AllViewerExceptHostHeader`. Pastikan tidak ada CloudFront Function maupun Lambda@Edge yang menyentuh body |
+| Uji ber-body **tanpa header** ternyata lolos | Perilaku layanan AWS berubah — Lambda kini menerima payload tak bertanda tangan | Bukan kegagalan susunan. **CK-A-12 perlu ditinjau ulang**, beserta pembungkus `fetch` di frontend |
 | `200` tetapi sidik jari berbeda | Body sampai dalam keadaan berubah, dan **tidak ada yang menolaknya** | Bandingkan `panjang_diterima` dengan `panjang_header`. Selisih menunjuk pemotongan; sama panjang tetapi berbeda sidik jari menunjuk penyandian ulang |
-| Uji 5 tidak `403` | Function URL dapat dipanggil siapa pun yang mengetahui alamatnya | **Hentikan seluruh penaikan.** Periksa `authorization_type` dan `aws_lambda_permission.cloudfront` |
+| Uji terakhir tidak `403` | Function URL dapat dipanggil siapa pun yang mengetahui alamatnya | **Hentikan seluruh penaikan.** Periksa `authorization_type` dan `aws_lambda_permission.cloudfront` |
+
+**Membedakan dua bentuk `403` dalam hitungan detik.** Badan jawabannya berbeda, dan perbedaannya menentukan ke mana harus mencari:
+
+| Badan jawaban | Artinya |
+|---|---|
+| `{"Message":"Forbidden"}` | Tidak ada tanda tangan sama sekali — OAC tidak menandatangani, atau requestnya memang langsung |
+| `{"Message":"Forbidden. For troubleshooting …"}` | Tanda tangan **ada** dan ditolak — persoalannya izin atau sidik jari payload |
 
 Bidang `x_amz_content_sha256` pada jawaban menunjukkan payload apa yang dinyatakan CloudFront ikut ditandatangani. Nilai `UNSIGNED-PAYLOAD` berarti body **tidak** ikut ditandatangani — sah menurut SigV4, dan artinya keutuhan body bersandar sepenuhnya pada TLS antara CloudFront dan Lambda. Itu bukan kegagalan, tetapi wajib diketahui alih-alih diasumsikan.
 
