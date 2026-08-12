@@ -25,6 +25,15 @@ locals {
     DB_INANG   = aws_db_instance.ini.address
     DB_PORTA   = tostring(aws_db_instance.ini.port)
     DB_NAMA    = var.nama_basis_data
+
+    # CK-A-13. Koneksi ke RDS memakai `sslmode=verify-full`, dan CA Amazon RDS
+    # tidak termasuk trust store bawaan Node — tanpa baris ini, setiap koneksi
+    # ditolak dengan `self-signed certificate in certificate chain`.
+    #
+    # Berkasnya disalin ke image oleh `backend/Dockerfile`; yang disetel di sini
+    # hanya kepercayaannya. Disetel HANYA pada lingkungan AWS, sehingga on-prem
+    # tidak terpengaruh sama sekali.
+    NODE_EXTRA_CA_CERTS = "/app/certs/rds-global-bundle.pem"
   }
 }
 
