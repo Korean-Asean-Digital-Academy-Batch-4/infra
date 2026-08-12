@@ -87,6 +87,26 @@ data "aws_iam_policy_document" "lambda_api" {
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = ["${aws_s3_bucket.rapor.arn}/*"]
   }
+
+  # ⚠️ Aplikasi TIDAK PERNAH mendaftar isi bucket, dan izin ini tetap wajib.
+  #
+  # Yang menuntutnya adalah perilaku S3 pada objek yang BELUM ADA: tanpa
+  # `s3:ListBucket`, `HeadObject` menjawab 403 alih-alih 404, karena S3 menolak
+  # membocorkan keberadaan objek kepada pemanggil yang tidak boleh mendaftarnya.
+  #
+  # Jalur render-saat-unduh memeriksa keberadaan berkas lebih dahulu, dan 403
+  # itu bukan "belum ada" melainkan galat sungguhan — sehingga setiap perenderan
+  # gagal sebelum satu pun berkas dibuat. Ditemukan saat B7, dengan gejala
+  # `berkas_terender: 0` tanpa satu pun pesan yang menyebut S3.
+  #
+  # Sasarannya bucket itu sendiri, TANPA `/*`: `ListBucket` adalah tindakan atas
+  # bucket, bukan atas objek — DEPLOYMENT.md §9.5.
+  statement {
+    sid       = "PeriksaKeberadaanBerkas"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.rapor.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "lambda_api" {
